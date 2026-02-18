@@ -9,6 +9,14 @@ import (
 	"github.com/shayaun-nejad/promptarmor/internal/scanner"
 )
 
+// JSONReport wraps results with summary statistics.
+type JSONReport struct {
+	Total   int              `json:"total"`
+	Passed  int              `json:"passed"`
+	Failed  int              `json:"failed"`
+	Results []scanner.Result `json:"results"`
+}
+
 // WriteText writes a human-readable report to w.
 func WriteText(w io.Writer, results []scanner.Result) {
 	if len(results) == 0 {
@@ -25,11 +33,42 @@ func WriteText(w io.Writer, results []scanner.Result) {
 			fmt.Fprintf(w, "       %s\n", r.Detail)
 		}
 	}
+
+	passed, failed := tally(results)
+	fmt.Fprintf(w, "\nResults: %d/%d passed, %d/%d failed\n", passed, len(results), failed, len(results))
 }
 
-// WriteJSON writes a JSON report to w.
+// WriteJSON writes a JSON report with summary envelope to w.
 func WriteJSON(w io.Writer, results []scanner.Result) error {
+	passed, failed := tally(results)
+	report := JSONReport{
+		Total:   len(results),
+		Passed:  passed,
+		Failed:  failed,
+		Results: results,
+	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(results)
+	return enc.Encode(report)
+}
+
+// HasFailures returns true if any result failed.
+func HasFailures(results []scanner.Result) bool {
+	for _, r := range results {
+		if !r.Passed {
+			return true
+		}
+	}
+	return false
+}
+
+func tally(results []scanner.Result) (passed, failed int) {
+	for _, r := range results {
+		if r.Passed {
+			passed++
+		} else {
+			failed++
+		}
+	}
+	return
 }

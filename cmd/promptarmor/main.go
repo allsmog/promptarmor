@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/shayaun-nejad/promptarmor/internal/report"
+	"github.com/shayaun-nejad/promptarmor/internal/scanner"
 	"github.com/spf13/cobra"
 )
 
@@ -20,26 +25,17 @@ func main() {
 	scanCmd := &cobra.Command{
 		Use:   "scan",
 		Short: "Run prompt injection test suites against a target",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			target, _ := cmd.Flags().GetString("target")
-			output, _ := cmd.Flags().GetString("output")
-			suite, _ := cmd.Flags().GetString("suite")
-
-			if target == "" {
-				return fmt.Errorf("--target is required")
-			}
-
-			color.Cyan("Scanning target: %s", target)
-			color.Cyan("Output format:   %s", output)
-			color.Cyan("Test suite:      %s", suite)
-			color.Yellow("\nScan engine not yet implemented.")
-			return nil
-		},
+		RunE:  runScan,
 	}
 
-	scanCmd.Flags().StringP("target", "t", "", "Target endpoint or config file to scan")
+	scanCmd.Flags().StringP("target", "t", "", "Target endpoint to scan")
 	scanCmd.Flags().StringP("output", "o", "text", "Output format: text, json")
 	scanCmd.Flags().StringP("suite", "s", "all", "Test suite to run: jailbreak, tool-abuse, all")
+	scanCmd.Flags().IntP("concurrency", "c", 5, "Number of concurrent requests")
+	scanCmd.Flags().Duration("timeout", 30*time.Second, "HTTP request timeout")
+	scanCmd.Flags().String("prompt-field", "prompt", "JSON field name for the prompt in requests")
+	scanCmd.Flags().String("response-field", "response", "JSON field name for the response in replies")
+	scanCmd.Flags().String("api-key", "", "Anthropic API key for LLM judge detection (or set ANTHROPIC_API_KEY)")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
@@ -54,4 +50,69 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func runScan(cmd *cobra.Command, args []string) error {
+	target, _ := cmd.Flags().GetString("target")
+	output, _ := cmd.Flags().GetString("output")
+	suite, _ := cmd.Flags().GetString("suite")
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+	timeout, _ := cmd.Flags().GetDuration("timeout")
+	promptField, _ := cmd.Flags().GetString("prompt-field")
+	responseField, _ := cmd.Flags().GetString("response-field")
+	apiKey, _ := cmd.Flags().GetString("api-key")
+
+	if target == "" {
+		return fmt.Errorf("--target is required")
+	}
+
+	// API key: flag > env var.
+	if apiKey == "" {
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	color.Cyan("promptarmor v%s", version)
+	color.Cyan("Target:      %s", target)
+	color.Cyan("Suite:       %s", suite)
+	color.Cyan("Concurrency: %d", concurrency)
+
+	s := scanner.New(scanner.Config{
+		Target:        target,
+		Suite:         suite,
+		Concurrency:   concurrency,
+		Timeout:       timeout,
+		PromptField:   promptField,
+		ResponseField: responseField,
+		APIKey:        apiKey,
+	})
+
+	if s.UsingJudge() {
+		color.Cyan("Detection:   LLM judge (Claude Haiku)")
+	} else {
+		color.Yellow("Detection:   pattern matching (set ANTHROPIC_API_KEY for LLM judge)")
+	}
+	fmt.Println()
+
+	results, err := s.Run(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	switch output {
+	case "json":
+		if err := report.WriteJSON(os.Stdout, results); err != nil {
+			return fmt.Errorf("write JSON report: %w", err)
+		}
+	default:
+		report.WriteText(os.Stdout, results)
+	}
+
+	if report.HasFailures(results) {
+		os.Exit(1)
+	}
+	return nil
 }
