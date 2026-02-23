@@ -1,4 +1,4 @@
-<img src="promptarmor.png" alt="promptarmor logo" width="200" align="left" style="margin-right: 16px;" />
+<img src="promptarmor.png" alt="promptarmor logo" width="200" />
 
 # promptarmor
 
