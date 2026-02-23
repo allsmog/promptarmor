@@ -1,3 +1,5 @@
+<img src="promptarmor.png" alt="promptarmor logo" width="200" align="left" style="margin-right: 16px;" />
+
 # promptarmor
 
 Prompt injection scanner for LLM applications. Tests whether your AI endpoint is vulnerable to jailbreaks, tool abuse, and other injection attacks.
