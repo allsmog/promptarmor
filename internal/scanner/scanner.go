@@ -29,6 +29,8 @@ type Config struct {
 	PromptField   string
 	ResponseField string
 	APIKey        string
+	Provider      string
+	Model         string
 }
 
 // Scanner runs prompt injection test suites against a target.
@@ -39,7 +41,7 @@ type Scanner struct {
 }
 
 // New creates a Scanner with the given configuration.
-func New(cfg Config) *Scanner {
+func New(cfg Config) (*Scanner, error) {
 	if cfg.Concurrency <= 0 {
 		cfg.Concurrency = 5
 	}
@@ -57,15 +59,33 @@ func New(cfg Config) *Scanner {
 		cfg:    cfg,
 		client: httpclient.New(cfg.Target, cfg.PromptField, cfg.ResponseField, cfg.Timeout),
 	}
+
 	if cfg.APIKey != "" {
-		s.judge = judge.New(cfg.APIKey)
+		provider, err := judge.ResolveProvider(judge.ProviderConfig{
+			ProviderName: cfg.Provider,
+			Model:        cfg.Model,
+			APIKey:       cfg.APIKey,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("resolve judge provider: %w", err)
+		}
+		s.judge = judge.New(provider)
 	}
-	return s
+
+	return s, nil
 }
 
 // UsingJudge reports whether the LLM judge is enabled.
 func (s *Scanner) UsingJudge() bool {
 	return s.judge != nil
+}
+
+// JudgeName returns the display name of the judge provider, or empty if not using a judge.
+func (s *Scanner) JudgeName() string {
+	if s.judge == nil {
+		return ""
+	}
+	return s.judge.ProviderName()
 }
 
 // Run executes the selected test suites and returns results.

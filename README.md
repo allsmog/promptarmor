@@ -57,11 +57,23 @@ promptarmor scan -t https://your-app.com/api/chat \
 
 By default, promptarmor uses pattern matching to detect if injection succeeded. This works but can miss subtle cases.
 
-For significantly more accurate detection, set an Anthropic API key to enable LLM-as-judge — a fast model evaluates each response to determine whether the target actually complied with the injection attempt:
+For significantly more accurate detection, set an API key to enable LLM-as-judge — a fast model evaluates each response to determine whether the target actually complied with the injection attempt. Three providers are supported:
 
 ```bash
+# Anthropic (default)
 export ANTHROPIC_API_KEY=sk-ant-...
-promptarmor scan -t https://your-app.com/api/chat
+
+# OpenAI
+export OPENAI_API_KEY=sk-...
+
+# Google Gemini
+export GEMINI_API_KEY=...
+```
+
+The provider is auto-detected from whichever environment variable is set. To choose explicitly:
+
+```bash
+promptarmor scan -t https://your-app.com/api/chat --provider openai
 ```
 
 The banner will confirm which detection mode is active:
@@ -84,7 +96,10 @@ Flags:
       --timeout duration        HTTP request timeout (default 30s)
       --prompt-field string     JSON field name for prompt in requests (default "prompt")
       --response-field string   JSON field name for response in replies (default "response")
-      --api-key string          Anthropic API key (or set ANTHROPIC_API_KEY env var)
+      --api-key string          LLM API key (or set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY)
+      --provider string         LLM judge provider: anthropic, openai, gemini (auto-detected if omitted)
+      --model string            Override default model for the chosen provider
+      --config string           Path to configuration file (default "promptarmor.yaml")
 ```
 
 ## CI/CD integration
@@ -100,6 +115,9 @@ promptarmor exits with code 1 when any injection succeeds, making it easy to gat
     promptarmor scan -t ${{ secrets.LLM_ENDPOINT }} -o json
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    # Or use a different provider:
+    # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
 
 ### JSON output
@@ -122,6 +140,35 @@ promptarmor scan -t https://your-app.com/api/chat -o json
     }
   ]
 }
+```
+
+## Configuration file
+
+Create a `promptarmor.yaml` in your project directory to avoid repeating flags:
+
+```yaml
+target: http://localhost:8080/chat
+suite: all
+concurrency: 5
+timeout: 30s
+prompt_field: prompt
+response_field: response
+api_key: ${ANTHROPIC_API_KEY}   # raw string, not expanded
+provider: anthropic
+model: claude-haiku-4-5-20251001
+output: text
+```
+
+All fields are optional. The merge precedence is:
+
+1. **CLI flag** (if explicitly passed) — highest priority
+2. **Config file value** (if non-zero)
+3. **Built-in default** — lowest priority
+
+Use a custom path with `--config`:
+
+```bash
+promptarmor scan --config ./ci/promptarmor.yaml
 ```
 
 ## Test suites

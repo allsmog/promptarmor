@@ -69,11 +69,20 @@ func safeServer() *httptest.Server {
 	}))
 }
 
+func mustNew(t *testing.T, cfg Config) *Scanner {
+	t.Helper()
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error creating scanner: %v", err)
+	}
+	return s
+}
+
 func TestScanner_VulnerableServer(t *testing.T) {
 	srv := vulnerableServer()
 	defer srv.Close()
 
-	s := New(Config{
+	s := mustNew(t, Config{
 		Target:      srv.URL,
 		Suite:       "all",
 		Concurrency: 2,
@@ -99,7 +108,7 @@ func TestScanner_SafeServer(t *testing.T) {
 	srv := safeServer()
 	defer srv.Close()
 
-	s := New(Config{
+	s := mustNew(t, Config{
 		Target:      srv.URL,
 		Suite:       "all",
 		Concurrency: 2,
@@ -122,7 +131,7 @@ func TestScanner_SuiteFilter(t *testing.T) {
 	srv := safeServer()
 	defer srv.Close()
 
-	s := New(Config{
+	s := mustNew(t, Config{
 		Target:      srv.URL,
 		Suite:       "jailbreak",
 		Concurrency: 2,
@@ -145,7 +154,7 @@ func TestScanner_SuiteFilter(t *testing.T) {
 }
 
 func TestScanner_NetworkError(t *testing.T) {
-	s := New(Config{
+	s := mustNew(t, Config{
 		Target:      "http://127.0.0.1:1",
 		Suite:       "jailbreak",
 		Concurrency: 2,
@@ -165,12 +174,15 @@ func TestScanner_NetworkError(t *testing.T) {
 }
 
 func TestScanner_UsingJudge(t *testing.T) {
-	noKey := New(Config{Target: "http://example.com", Suite: "all"})
+	noKey := mustNew(t, Config{Target: "http://example.com", Suite: "all"})
 	if noKey.UsingJudge() {
 		t.Error("expected no judge without API key")
 	}
 
-	withKey := New(Config{Target: "http://example.com", Suite: "all", APIKey: "sk-test"})
+	withKey, err := New(Config{Target: "http://example.com", Suite: "all", APIKey: "sk-ant-test", Provider: "anthropic"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if !withKey.UsingJudge() {
 		t.Error("expected judge with API key")
 	}
@@ -185,7 +197,7 @@ func TestScanner_Cancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	s := New(Config{
+	s := mustNew(t, Config{
 		Target:      srv.URL,
 		Suite:       "jailbreak",
 		Concurrency: 1,
@@ -201,5 +213,37 @@ func TestScanner_Cancellation(t *testing.T) {
 		if r.Passed {
 			t.Errorf("expected FAIL for %q on cancelled context", r.TestName)
 		}
+	}
+}
+
+func TestScanner_JudgeName(t *testing.T) {
+	noJudge := mustNew(t, Config{Target: "http://example.com", Suite: "all"})
+	if noJudge.JudgeName() != "" {
+		t.Errorf("expected empty judge name, got %q", noJudge.JudgeName())
+	}
+
+	withJudge, err := New(Config{
+		Target:   "http://example.com",
+		Suite:    "all",
+		APIKey:   "sk-ant-test",
+		Provider: "anthropic",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if withJudge.JudgeName() == "" {
+		t.Error("expected non-empty judge name")
+	}
+}
+
+func TestScanner_InvalidProvider(t *testing.T) {
+	_, err := New(Config{
+		Target:   "http://example.com",
+		Suite:    "all",
+		APIKey:   "some-key",
+		Provider: "invalid",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid provider")
 	}
 }
