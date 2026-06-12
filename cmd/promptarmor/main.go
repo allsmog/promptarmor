@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/shayaun-nejad/promptarmor/internal/config"
-	"github.com/shayaun-nejad/promptarmor/internal/report"
-	"github.com/shayaun-nejad/promptarmor/internal/scanner"
+	"github.com/allsmog/promptarmor/internal/config"
+	"github.com/allsmog/promptarmor/internal/report"
+	"github.com/allsmog/promptarmor/internal/scanner"
 	"github.com/spf13/cobra"
 )
 

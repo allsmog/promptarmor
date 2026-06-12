@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/fatih/color"
-	"github.com/shayaun-nejad/promptarmor/internal/scanner"
+	"github.com/allsmog/promptarmor/internal/scanner"
 )
 
 // JSONReport wraps results with summary statistics.

@@ -26,13 +26,13 @@ Results: 19/25 passed, 6/25 failed
 ## Install
 
 ```bash
-go install github.com/shayaun-nejad/promptarmor/cmd/promptarmor@latest
+go install github.com/allsmog/promptarmor/cmd/promptarmor@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/shayaun-nejad/promptarmor.git
+git clone https://github.com/allsmog/promptarmor.git
 cd promptarmor
 make build
 ```
@@ -111,7 +111,7 @@ promptarmor exits with code 1 when any injection succeeds, making it easy to gat
 ```yaml
 - name: Scan for prompt injection
   run: |
-    go install github.com/shayaun-nejad/promptarmor/cmd/promptarmor@latest
+    go install github.com/allsmog/promptarmor/cmd/promptarmor@latest
     promptarmor scan -t ${{ secrets.LLM_ENDPOINT }} -o json
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

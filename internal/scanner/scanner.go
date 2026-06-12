@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shayaun-nejad/promptarmor/internal/detect"
-	"github.com/shayaun-nejad/promptarmor/internal/httpclient"
-	"github.com/shayaun-nejad/promptarmor/internal/judge"
-	"github.com/shayaun-nejad/promptarmor/internal/suites"
+	"github.com/allsmog/promptarmor/internal/detect"
+	"github.com/allsmog/promptarmor/internal/httpclient"
+	"github.com/allsmog/promptarmor/internal/judge"
+	"github.com/allsmog/promptarmor/internal/suites"
 )
 
 // Result holds the outcome of a single test case.

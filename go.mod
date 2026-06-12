@@ -1,4 +1,4 @@
-module github.com/shayaun-nejad/promptarmor
+module github.com/allsmog/promptarmor
 
 go 1.25.0
 
